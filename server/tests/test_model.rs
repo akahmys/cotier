@@ -1,5 +1,5 @@
 use candle_core::{Device, Tensor};
-use cotier_server::model::CorticalModel;
+use cotier_server::model::{CorticalModel, ModelKvCache};
 use std::path::PathBuf;
 
 #[test]
@@ -34,16 +34,16 @@ fn test_decode_step_and_kv_cache() -> cotier_server::Result<()> {
     let device = Device::Cpu;
     let model = CorticalModel::load(&model_dir, &device)?;
 
-    let mut kv_caches = vec![None; model.config.num_cortical_stacks];
+    let mut model_kv = ModelKvCache::new(model.config.num_cortical_stacks);
     let token = Tensor::from_vec(vec![1u32], (1, 1), &device)?;
 
-    let (logits, cycles) = model.forward_decode(&token, 0, &mut kv_caches)?;
+    let (logits, cycles) = model.forward_decode(&token, 0, &mut model_kv)?;
     assert_eq!(logits.dims3()?, (1, 1, 32000));
     assert!((1..=6).contains(&cycles));
 
     // Second decode step
     let token2 = Tensor::from_vec(vec![250u32], (1, 1), &device)?;
-    let (logits2, cycles2) = model.forward_decode(&token2, 1, &mut kv_caches)?;
+    let (logits2, cycles2) = model.forward_decode(&token2, 1, &mut model_kv)?;
     assert_eq!(logits2.dims3()?, (1, 1, 32000));
     assert!((1..=6).contains(&cycles2));
 

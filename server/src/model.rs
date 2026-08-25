@@ -6,6 +6,66 @@ use candle_nn::{embedding, linear_no_bias, Embedding, Linear, VarBuilder};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+#[derive(Debug, Clone, Default)]
+pub struct LayerKvCache {
+    pub k: Option<Tensor>,
+    pub v: Option<Tensor>,
+}
+
+impl LayerKvCache {
+    pub fn new() -> Self {
+        Self { k: None, v: None }
+    }
+
+    pub fn append(&mut self, k: &Tensor, v: &Tensor) -> Result<(Tensor, Tensor)> {
+        match (&self.k, &self.v) {
+            (Some(prev_k), Some(prev_v)) => {
+                let new_k = Tensor::cat(&[prev_k, k], 2)?.contiguous()?;
+                let new_v = Tensor::cat(&[prev_v, v], 2)?.contiguous()?;
+                self.k = Some(new_k.clone());
+                self.v = Some(new_v.clone());
+                Ok((new_k, new_v))
+            }
+            _ => {
+                self.k = Some(k.clone());
+                self.v = Some(v.clone());
+                Ok((k.clone(), v.clone()))
+            }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.k.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ModelKvCache {
+    pub layers: Vec<LayerKvCache>,
+}
+
+impl ModelKvCache {
+    pub fn new(num_layers: usize) -> Self {
+        Self {
+            layers: vec![LayerKvCache::new(); num_layers],
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.layers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+    }
+
+    pub fn layer_mut(&mut self, idx: usize) -> Result<&mut LayerKvCache> {
+        self.layers.get_mut(idx).ok_or_else(|| {
+            CotierError::Inference(format!("Layer KV cache index {} out of bounds", idx))
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
     #[serde(default = "default_hidden_size")]
@@ -216,7 +276,7 @@ impl CausalSelfAttention {
         &self,
         x: &Tensor,
         offset: usize,
-        kv_cache: &mut Option<(Tensor, Tensor)>,
+        kv_cache: &mut LayerKvCache,
     ) -> Result<Tensor> {
         let (b, l, _d) = x.dims3()?;
         let q = self.q_proj.forward(x)?;
@@ -239,19 +299,7 @@ impl CausalSelfAttention {
         let q = self.rotary.apply(&q, offset)?.contiguous()?;
         let k = self.rotary.apply(&k, offset)?.contiguous()?;
 
-        let (k, v) = match kv_cache {
-            Some((prev_k, prev_v)) => {
-                let new_k = Tensor::cat(&[&*prev_k, &k], 2)?.contiguous()?;
-                let new_v = Tensor::cat(&[&*prev_v, &v], 2)?.contiguous()?;
-                *prev_k = new_k.clone();
-                *prev_v = new_v.clone();
-                (new_k, new_v)
-            }
-            None => {
-                *kv_cache = Some((k.clone(), v.clone()));
-                (k, v)
-            }
-        };
+        let (k, v) = kv_cache.append(&k, &v)?;
 
         let scale = 1.0 / (self.head_dim as f64).sqrt();
         let k_t = k.transpose(2, 3)?.contiguous()?;
@@ -324,9 +372,8 @@ impl SwiGLUFFN {
     pub fn forward(&self, x: &Tensor) -> Result<Tensor> {
         let gate = candle_nn::ops::silu(&self.gate_proj.forward(x)?)?;
         let up = self.up_proj.forward(x)?;
-        let inter = (gate * up)?;
-        let out = self.down_proj.forward(&inter)?;
-        Ok(out)
+        let down = self.down_proj.forward(&(gate * up)?)?;
+        Ok(down)
     }
 }
 
@@ -358,7 +405,7 @@ impl LayerVCore {
         z_prev: &Tensor,
         z_l1: &Tensor,
         offset: usize,
-        kv_cache: &mut Option<(Tensor, Tensor)>,
+        kv_cache: &mut LayerKvCache,
     ) -> Result<Tensor> {
         let a_k = self.attn.forward(z_prev, offset, kv_cache)?;
         let sum_z = (z_prev + &a_k)?.broadcast_add(z_l1)?;
@@ -437,7 +484,7 @@ impl CorticalStack {
         &self,
         z_in: &Tensor,
         offset: usize,
-        kv_cache: &mut Option<(Tensor, Tensor)>,
+        kv_cache: &mut LayerKvCache,
         is_prefill: bool,
     ) -> Result<(Tensor, usize)> {
         let z_l4 = self.l4_norm.forward(z_in)?;
@@ -534,7 +581,7 @@ impl CorticalModel {
         let mut hidden = self.embed_tokens.forward(input_ids)?;
 
         for stack in &self.stacks {
-            let mut stack_kv = None;
+            let mut stack_kv = LayerKvCache::new();
             let (z_final, _) = stack.forward(&hidden, 0, &mut stack_kv, true)?;
             hidden = z_final;
         }
@@ -548,13 +595,14 @@ impl CorticalModel {
         &self,
         token_id: &Tensor,
         offset: usize,
-        kv_caches: &mut [Option<(Tensor, Tensor)>],
+        model_kv: &mut ModelKvCache,
     ) -> Result<(Tensor, usize)> {
         let mut hidden = self.embed_tokens.forward(token_id)?;
         let mut max_cycles = 1;
 
         for (idx, stack) in self.stacks.iter().enumerate() {
-            let (z_final, cycles) = stack.forward(&hidden, offset, &mut kv_caches[idx], false)?;
+            let layer_kv = model_kv.layer_mut(idx)?;
+            let (z_final, cycles) = stack.forward(&hidden, offset, layer_kv, false)?;
             hidden = z_final;
             if cycles > max_cycles {
                 max_cycles = cycles;

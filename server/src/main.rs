@@ -201,60 +201,59 @@ async fn main() -> Result<()> {
                 let encoding = tokenizer
                     .encode(prompt.clone(), true)
                     .map_err(|e| cotier_server::CotierError::Inference(e.to_string()))?;
-                let mut current_ids = encoding.get_ids().to_vec();
-                let mut generated_ids = Vec::new();
-                let eos_id = tokenizer.token_to_id("<|im_end|>");
+                let prompt_ids = encoding.get_ids();
+                let eos_token_id = tokenizer.token_to_id("<|im_end|>").unwrap_or(1);
+
+                let config = cotier_server::engine::GenerationConfig {
+                    max_new_tokens: 256,
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    eos_token_id,
+                };
+
+                let engine =
+                    cotier_server::engine::GenerationEngine::new(&cortical_model, &tokenizer);
+                let mut iterator = engine.stream(prompt_ids, &config)?;
 
                 print!("🤖 Cotier: ");
                 stdout.flush()?;
 
-                let mut total_surprise = 0.0f32;
+                let mut full_response = String::new();
+                let mut total_surprise = 0.0_f32;
                 let mut token_count = 0;
+                let mut max_cycles = 1;
 
-                use candle_core::IndexOp;
-                for _ in 0..256 {
-                    let input_tensor = candle_core::Tensor::from_vec(
-                        current_ids.clone(),
-                        (1, current_ids.len()),
-                        &device,
-                    )?;
-                    let logits = cortical_model.forward(&input_tensor)?;
-                    let last_logits = logits.i((0, current_ids.len() - 1, ..))?;
-                    let next_token = last_logits.argmax(0)?.to_scalar::<u32>()?;
-
-                    if Some(next_token) == eos_id {
+                while let Some(step) = iterator.step()? {
+                    if step.is_eos {
                         break;
                     }
-
-                    let probs = candle_nn::ops::softmax(&last_logits, 0).unwrap_or(last_logits);
-                    let p = probs
-                        .i(next_token as usize)
-                        .and_then(|t| t.to_scalar::<f32>())
-                        .unwrap_or(0.5);
-                    let surprise = -p.clamp(1e-7, 1.0).ln();
-                    total_surprise += surprise;
-                    token_count += 1;
-
-                    let token_text = tokenizer.decode(&[next_token], false).unwrap_or_default();
-                    print!("{}", token_text);
+                    print!("{}", step.token_text);
                     stdout.flush()?;
-
-                    generated_ids.push(next_token);
-                    current_ids.push(next_token);
+                    full_response.push_str(&step.token_text);
+                    total_surprise += step.surprise;
+                    token_count += 1;
+                    if step.cycles > max_cycles {
+                        max_cycles = step.cycles;
+                    }
                 }
                 println!();
 
-                let full_response = tokenizer.decode(&generated_ids, true).unwrap_or_default();
                 let avg_surprise = if token_count > 0 {
                     total_surprise / token_count as f32
                 } else {
-                    0.0
+                    0.0_f32
                 };
 
                 // Save to hippocampal memory
                 let session_id = "cli_chat";
-                let ep_id =
-                    memory.save_episode(session_id, input, &full_response, avg_surprise, 1, 0)?;
+                let ep_id = memory.save_episode(
+                    session_id,
+                    input,
+                    &full_response,
+                    avg_surprise,
+                    max_cycles,
+                    0,
+                )?;
                 last_episode_id = Some(ep_id);
 
                 println!(

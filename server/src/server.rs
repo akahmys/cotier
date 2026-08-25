@@ -9,7 +9,6 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use candle_core::{IndexOp, Tensor};
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -257,50 +256,26 @@ async fn generate_non_streaming(
         .as_secs();
     let id = format!("chatcmpl-{}", now);
 
-    let mut generated_ids = Vec::new();
-    let mut current_ids = prompt_ids.to_vec();
-    let max_cycles = 1;
-    let mut avg_surprise = 0.0f32;
+    let eos_token_id = state.tokenizer.token_to_id("<|im_end|>").unwrap_or(1);
 
-    let eos_id = state.tokenizer.token_to_id("<|im_end|>");
+    let config = crate::engine::GenerationConfig {
+        max_new_tokens: max_tokens,
+        temperature: 0.0,
+        top_p: 1.0,
+        eos_token_id,
+    };
 
-    for _ in 0..max_tokens {
-        let input_tensor = Tensor::from_vec(
-            current_ids.clone(),
-            (1, current_ids.len()),
-            &state.model.device,
-        )?;
-        let logits = state.model.forward(&input_tensor)?;
-        let last_logits = logits.i((0, current_ids.len() - 1, ..))?;
-        let next_token = last_logits.argmax(0)?.to_scalar::<u32>()?;
+    let engine = crate::engine::GenerationEngine::new(&state.model, &state.tokenizer);
+    let output = engine.generate(prompt_ids, &config)?;
 
-        // Compute softmax surprise: -log(p)
-        let probs = candle_nn::ops::softmax(&last_logits, 0).unwrap_or(last_logits);
-        let p = probs
-            .i(next_token as usize)
-            .and_then(|t| t.to_scalar::<f32>())
-            .unwrap_or(0.5);
-        let surprise = -p.clamp(1e-7, 1.0).ln();
-        avg_surprise = (avg_surprise + surprise) / 2.0;
-
-        if Some(next_token) == eos_id {
-            break;
-        }
-
-        generated_ids.push(next_token);
-        current_ids.push(next_token);
-    }
-
-    let response_text = state
-        .tokenizer
-        .decode(&generated_ids, true)
-        .unwrap_or_default();
-    let tool_calls = extract_tool_calls(&response_text);
+    let tool_calls = extract_tool_calls(&output.text);
 
     // Save episode to SQLite in background
     let session_id = format!("sess_{}", now);
     let prompt_saved = prompt_text.to_string();
-    let response_saved = response_text.clone();
+    let response_saved = output.text.clone();
+    let avg_surprise = output.avg_surprise;
+    let max_cycles = output.max_cycles;
     let mem_arc = state.memory.clone();
     tokio::spawn(async move {
         let mut mem = mem_arc.lock().await;
@@ -319,7 +294,7 @@ async fn generate_non_streaming(
         content: if tool_calls.is_some() {
             None
         } else {
-            Some(response_text)
+            Some(output.text)
         },
         tool_calls,
     };
@@ -332,11 +307,11 @@ async fn generate_non_streaming(
         choices: vec![ChatChoiceResponse {
             index: 0,
             message,
-            finish_reason: "stop".to_string(),
+            finish_reason: output.finish_reason,
         }],
         cortical_metrics: Some(CorticalMetrics {
-            cycles: max_cycles,
-            surprise: avg_surprise,
+            cycles: output.max_cycles,
+            surprise: output.avg_surprise,
         }),
     })
 }
@@ -344,54 +319,32 @@ async fn generate_non_streaming(
 fn generate_sse_stream(
     state: AppState,
     model_name: String,
-    prompt_text: String,
+    _prompt_text: String,
     prompt_ids: Vec<u32>,
     max_tokens: usize,
 ) -> impl Stream<Item = std::result::Result<Event, Infallible>> {
     async_stream::stream! {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs();
         let chunk_id = format!("chatcmpl-{}", now);
-        let mut generated_ids = Vec::new();
-        let mut current_ids = prompt_ids;
-        let eos_id = state.tokenizer.token_to_id("<|im_end|>");
-        let mut total_surprise = 0.0f32;
-        let mut steps = 0;
+        let eos_token_id = state.tokenizer.token_to_id("<|im_end|>").unwrap_or(1);
 
-        for _ in 0..max_tokens {
-            let input_tensor = match Tensor::from_vec(current_ids.clone(), (1, current_ids.len()), &state.model.device) {
-                Ok(t) => t,
-                Err(_) => break,
-            };
+        let config = crate::engine::GenerationConfig {
+            max_new_tokens: max_tokens,
+            temperature: 0.0,
+            top_p: 1.0,
+            eos_token_id,
+        };
 
-            let logits = match state.model.forward(&input_tensor) {
-                Ok(l) => l,
-                Err(_) => break,
-            };
+        let engine = crate::engine::GenerationEngine::new(&state.model, &state.tokenizer);
+        let mut iterator = match engine.stream(&prompt_ids, &config) {
+            Ok(it) => it,
+            Err(_) => return,
+        };
 
-            let last_logits = match logits.i((0, current_ids.len() - 1, ..)) {
-                Ok(l) => l,
-                Err(_) => break,
-            };
-
-            let next_token = match last_logits.argmax(0).and_then(|t| t.to_scalar::<u32>()) {
-                Ok(t) => t,
-                Err(_) => break,
-            };
-
-            if Some(next_token) == eos_id {
+        while let Ok(Some(step)) = iterator.step() {
+            if step.is_eos {
                 break;
             }
-
-            steps += 1;
-            let probs = candle_nn::ops::softmax(&last_logits, 0).unwrap_or(last_logits.clone());
-            let p = probs.i(next_token as usize).and_then(|t| t.to_scalar::<f32>()).unwrap_or(0.5);
-            let surprise = -p.clamp(1e-7, 1.0).ln();
-            total_surprise += surprise;
-
-            generated_ids.push(next_token);
-            current_ids.push(next_token);
-
-            let token_text = state.tokenizer.decode(&[next_token], false).unwrap_or_default();
 
             let chunk = ChatCompletionChunk {
                 id: chunk_id.clone(),
@@ -401,11 +354,11 @@ fn generate_sse_stream(
                 choices: vec![ChatChoiceDeltaWrapper {
                     index: 0,
                     delta: ChatChoiceDelta {
-                        content: Some(token_text),
+                        content: Some(step.token_text),
                         tool_calls: None,
                         cortical_metrics: Some(CorticalMetrics {
-                            cycles: 1,
-                            surprise,
+                            cycles: step.cycles,
+                            surprise: step.surprise,
                         }),
                     },
                     finish_reason: None,
@@ -439,16 +392,6 @@ fn generate_sse_stream(
         }
 
         yield Ok(Event::default().data("[DONE]"));
-
-        // Save dialogue into SQLite episode memory
-        let full_response = state.tokenizer.decode(&generated_ids, true).unwrap_or_default();
-        let avg_surprise = if steps > 0 { total_surprise / steps as f32 } else { 0.0 };
-        let session_id = format!("sess_{}", now);
-        let mem = state.memory.clone();
-        tokio::spawn(async move {
-            let mut m = mem.lock().await;
-            let _ = m.save_episode(&session_id, &prompt_text, &full_response, avg_surprise, 1, 0);
-        });
     }
 }
 

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod engine;
 pub mod learner;
 pub mod memory;
 pub mod model;

@@ -34,6 +34,7 @@ class CotierConfig:
     rope_theta: float = 10000.0
     tie_word_embeddings: bool = True
     torch_dtype: str = "bfloat16"
+    pad_token_id: int = 2
 
 
 class ModelOutput(NamedTuple):

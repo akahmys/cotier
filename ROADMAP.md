@@ -16,8 +16,8 @@ gantt
     Sprint 3: Rust 推論コア & Metal 最適化       :done, s3, after s2, 4d
     Sprint 4: OpenAI / MCP サーバー & 記憶固定化 :done, s4, after s3, 5d
     Sprint 5: E2E 結合検証 & エージェント接続   :done, s5, after s4, 3d
-    Sprint 6: コードベース総合リファクタリング   :active, s6, after s5, 2d
-    Sprint 7: 倫理・安全性アライメント & 免疫ガードレール :s7, after s6, 3d
+    Sprint 6: コードベース総合リファクタリング   :done, s6, after s5, 2d
+    Sprint 7: 倫理・安全性アライメント & 免疫ガードレール :active, s7, after s6, 3d
     
     section v1.1 高速化 (小脳ショートカット)
     小脳 Fast-Path & Metal カーネル融合           :v11, after s7, 5d
@@ -107,11 +107,11 @@ gantt
 ---
 
 ### Sprint 6: コードベース総合リファクタリング & CR-15 ハードニング (Days 22〜23)
-* [ ] **Python 学習基盤の DRY 化 & 型強化 (`train/src/`)**:
+* [x] **Python 学習基盤の DRY 化 & 型強化 (`train/src/`)**:
   - `train/src/dataset.py`: `TokenizedDataset` のモジュール分離・共通化
   - `train/src/trainer.py`: `CotierTrainer` 基盤クラスの構築（Phase 0〜2 の学習・最適化ループ共通化）
   - **CODING 規約適合**: `mypy --strict src/` 完全適合、全テンソル変換への形状注記コメント付与、PonderNet $\epsilon$-clamping ($\epsilon=10^{-7}$) 徹底
-* [ ] **Rust 推論ジェネレータの共通化 & CR-15 準拠 (`server/src/`)**:
+* [x] **Rust 推論ジェネレータの共通化 & CR-15 準拠 (`server/src/`)**:
   - `server/src/engine.rs`: `TokenStreamIterator` / `GenerationEngine` の抽出
   - `generate_non_streaming`, `generate_sse_stream`, CLI `chat` の自己回帰ループ（forward・argmax・surprise・decode）一本化
   - **CR-15 規約適合**:
@@ -120,10 +120,10 @@ gantt
     - **Rule 4 & 5 (制御フロー/網羅 Match)**: `?` 早期リターン徹底、ドメイン enum ワイルドカード排除
     - **Rule 13 (ゼロアロケーション)**: Decode ループ中の不要なメモリ確保・クローン排除
     - **Rule 14 & 15 (FP32/明示的型指定)**: Surprise / Softmax の FP32 計算、`1.0_f32` リテラル指定
-* [ ] **KV Cache の型カプセル化 (`server/src/model.rs`)**:
+* [x] **KV Cache の型カプセル化 (`server/src/model.rs`)**:
   - `struct LayerKvCache` および `struct ModelKvCache` による安全なキャッシュ管理（**Rule 8 不正状態の排除**）
   - In-Place メモリ更新およびシーケンス長トリミングの型安全化
-* [ ] **CR-15 / AUDITING / TESTING 全自動回帰検証**:
+* [x] **CR-15 / AUDITING / TESTING 全自動回帰検証**:
   - **静的監査 (Rule A1〜A8)**: `bash scripts/audit/verify_compliance.sh` 全項目 PASS
   - **単体・統合テスト (Rule T1)**: `cd train && uv run pytest` & `cd server && cargo test --workspace`
   - **スキーマ & パリティ (Rule T2, T3)**: `verify_tensor_schema.py` & `verify_parity.py` ($L_\infty < 10^{-4}$)
