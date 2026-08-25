@@ -1,0 +1,29 @@
+# Build artifacts
+target/
+dist/
+build/
+*.so
+*.dylib
+
+# Python & virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Model checkpoints & large binary datasets
+models/**/*.safetensors
+models/**/*.sqlite
+models/**/*.sqlite-journal
+data/raw/
+data/processed/
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

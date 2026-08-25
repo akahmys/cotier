@@ -1,0 +1,41 @@
+[project]
+name = "cotier-train"
+version = "0.1.0"
+description = "Cortical-Tier Recurrent Reasoning Model (Cotier-0.45B) Training Pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "torch>=2.4.0",
+    "transformers>=4.44.0",
+    "datasets>=2.21.0",
+    "safetensors>=0.4.4",
+    "tokenizers>=0.19.1",
+    "accelerate>=0.33.0",
+    "tqdm>=4.66.0",
+    "numpy>=1.26.0",
+    "scipy>=1.13.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "pytest>=8.3.0",
+    "pip-licenses>=5.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-commit hook to scan for secrets and sensitive information using betterleaks
+
+echo "🔒 Running betterleaks pre-commit secret & PII scan..."
+if ! command -v betterleaks >/dev/null 2>&1; then
+    echo "⚠️  Warning: betterleaks is not installed. Skipping secret scan."
+    exit 0
+fi
+
+betterleaks git --pre-commit --staged
+if [ $? -ne 0 ]; then
+    echo "❌ Secret or PII leak detected! Commit aborted by betterleaks."
+    exit 1
+fi
+
+echo "✅ Secret & PII scan passed cleanly."

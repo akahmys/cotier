@@ -1,0 +1,20 @@
+title = "Cotier betterleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore build artifacts, model binary files, and datasets"
+paths = [
+    '''target''',
+    '''models/.*\.safetensors''',
+    '''models/.*\.sqlite''',
+    '''data''',
+    '''\.git''',
+]
+
+[[rules]]
+id = "personal-name-pii"
+description = "Detected author/developer personal name (Jun Kato), preventing accidental PII leakage."
+regex = '''(?i)\b(jun[\s._-]*kato|kato[\s._-]*jun)\b'''
+keywords = ["jun", "kato"]

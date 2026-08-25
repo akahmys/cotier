@@ -1,0 +1,30 @@
+{
+  "description": "Cotier-0.45B Safetensors Parameter Naming Contract",
+  "embedding": {
+    "embed_tokens.weight": [32000, 1024]
+  },
+  "cortical_stack_template": {
+    "stacks.{i}.l1_global.weight": [1024, 1024],
+    "stacks.{i}.l1_global_norm.weight": [1024],
+    "stacks.{i}.l2_lateral.weight": [1024, 1024],
+    "stacks.{i}.l2_lateral_norm.weight": [1024],
+    "stacks.{i}.l4_norm.weight": [1024],
+    "stacks.{i}.l5_core.attn.q_proj.weight": [1024, 1024],
+    "stacks.{i}.l5_core.attn.k_proj.weight": [1024, 1024],
+    "stacks.{i}.l5_core.attn.v_proj.weight": [1024, 1024],
+    "stacks.{i}.l5_core.attn.o_proj.weight": [1024, 1024],
+    "stacks.{i}.l5_core.attn_norm.weight": [1024],
+    "stacks.{i}.l5_core.ffn.gate_proj.weight": [2816, 1024],
+    "stacks.{i}.l5_core.ffn.up_proj.weight": [2816, 1024],
+    "stacks.{i}.l5_core.ffn.down_proj.weight": [1024, 2816],
+    "stacks.{i}.l5_core.ffn_norm.weight": [1024],
+    "stacks.{i}.l6_halt.weight": [1, 1024],
+    "stacks.{i}.l6_halt.bias": [1]
+  },
+  "final_norm": {
+    "norm.weight": [1024]
+  },
+  "lm_head": {
+    "lm_head.weight": [32000, 1024]
+  }
+}

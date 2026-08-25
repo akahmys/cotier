@@ -1,0 +1,22 @@
+{
+  "model_type": "cotier",
+  "architectures": [
+    "CotierForCausalLM"
+  ],
+  "hidden_size": 1024,
+  "intermediate_size": 2816,
+  "num_attention_heads": 16,
+  "num_key_value_heads": 16,
+  "head_dim": 64,
+  "num_cortical_stacks": 4,
+  "max_recurrent_cycles": 6,
+  "recurrent_alpha": 0.1,
+  "ponder_epsilon": 0.05,
+  "ponder_lambda_geom": 0.2,
+  "vocab_size": 32000,
+  "max_position_embeddings": 2048,
+  "rms_norm_eps": 1e-6,
+  "rope_theta": 10000.0,
+  "tie_word_embeddings": true,
+  "torch_dtype": "bfloat16"
+}

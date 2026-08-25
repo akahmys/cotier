@@ -1,0 +1,43 @@
+[package]
+name = "cotier-server"
+version = "0.1.0"
+edition = "2021"
+description = "Apple Silicon-native inference & lifelong learning server for Cotier-0.45B"
+license = "MIT"
+
+[dependencies]
+# ML & Tensor Engine
+candle-core = { version = "0.8" }
+candle-nn = { version = "0.8" }
+candle-transformers = { version = "0.8" }
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"] }
+safetensors = "0.5"
+
+# Web & Async Runtime
+tokio = { version = "1.38", features = ["full"] }
+axum = { version = "0.7", features = ["macros"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+async-stream = "0.3"
+futures = "0.3"
+arc-swap = "1.7"
+
+# Persistence & Storage
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Serialization & CLI
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "1.0"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[features]
+default = ["metal"]
+metal = ["candle-core/metal", "candle-nn/metal"]
+
+[lints.rust]
+unsafe_code = "forbid"
