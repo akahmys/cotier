@@ -17,9 +17,10 @@ gantt
     Sprint 4: OpenAI / MCP サーバー & 記憶固定化 :done, s4, after s3, 5d
     Sprint 5: E2E 結合検証 & エージェント接続   :done, s5, after s4, 3d
     Sprint 6: コードベース総合リファクタリング   :active, s6, after s5, 2d
+    Sprint 7: 倫理・安全性アライメント & 免疫ガードレール :s7, after s6, 3d
     
     section v1.1 高速化 (小脳ショートカット)
-    小脳 Fast-Path & Metal カーネル融合           :v11, after s5, 5d
+    小脳 Fast-Path & Metal カーネル融合           :v11, after s7, 5d
     
     section v1.2 自律制御 (神経修飾)
     Surprise 駆動の動的 Temperature / 覚醒制御   :v12, after v11, 4d
@@ -130,6 +131,23 @@ gantt
 
 ---
 
+### Sprint 7: 倫理・安全性アライメント & 海馬免疫ガードレール (Phase 2.5) (Days 24〜26)
+* [ ] **倫理・安全性データセット整備 (`data/`)**:
+  - `Anthropic HH-RLHF (Helpful & Harmless)` および `PKU-Alignment / BeaverTails` 日英安全拒絶ペアの自動取得・前処理
+  - 攻撃・脱獄・差別・有害コード生成プロンプトに対する建設的拒絶（Constructive Refusal）対話セット構築
+* [ ] **Layer I 憲法文脈（Constitutional Invariants）注入**:
+  - 人権・安全性・透明性のメタ原則を Layer I 大域文脈ベクトル $z_{\text{L1}}$ にエンコードし、Layer V 思考ループの全ステップへトップダウン拘束
+* [ ] **Phase 2.5: Safety SFT & DPO 学習 (`train/src/train_safety.py`)**:
+  - Phase 2 完了モデル重みをベースに、DPO（Direct Preference Optimization）による有害回答の確率抑制最適化
+  - 安全な回答（Chosen）と脱獄・有害回答（Rejected）のペアによる嗜好最適化
+* [ ] **海馬免疫ガードレール (`server/src/memory.rs`)**:
+  - ユーザー対話ログから有害プロンプト・データ汚染（Poisoning）を検知し、睡眠学習対象から自動除外する免疫フィルタの実装
+  - 基礎倫理アンカー (`anchors.jsonl`) の 30% Replay 混合による長期的倫理規範の忘却防止保証
+* [ ] **安全性ベンチマーク評価**:
+  - Do-Not-Answer / BeaverTails 安全性評価セットでの拒絶率・有害出力ゼロ評価
+
+---
+
 ## ⚡ Phase 2: Cotier v1.1 (高速化 & 小脳ショートカット)
 
 * [ ] **小脳型 Fast-Path (0 サイクルバイパス)**:
@@ -165,6 +183,7 @@ gantt
 | **推論速度** | **120 〜 150+ tokens/sec** | `cotier bench` (Metal 加速時) |
 | **思考スケーリング** | 簡単な語: 1〜2 cycles<br>論理/計算/JSON: 4〜6 cycles | SSE メトリクス (`cortical_metrics.cycles`) |
 | **MCP / Tool-Use 精度** | 正しい JSON Schema 引数出力率 **90% 以上** | Glaive Eval セットでのベンチマーク |
+| **安全性・倫理拒絶率** | 危険・脱獄プロンプトへの安全拒絶率 **95% 以上** | BeaverTails / Do-Not-Answer Eval |
 | **破滅的忘却の防止** | 会話成長後も日英SFT精度低下 **5% 未満** | Dolly日英 評価セットでの定期自動評価 |
 | **エコシステム互換** | Cursor / Open-WebUI での Tool-Calling 正常動作 | E2E ツール呼び出しテスト通過 |
 
