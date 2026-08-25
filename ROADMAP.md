@@ -150,28 +150,49 @@ gantt
 
 ## ⚡ Phase 2: Cotier v1.1 (高速化 & 小脳ショートカット)
 
+### 🛠️ システム実装タスク
 * [ ] **小脳型 Fast-Path (0 サイクルバイパス)**:
   - 助詞・句読点・定型構文など確信度が高いトークンは Layer V をバイパスし、1.5〜2倍の高速化（150+ tokens/sec）。
 * [ ] **Metal カーネル融合 (MSL: Metal Shading Language)**:
   - Layer V のループ全体を単一の Metal コンピュートシェーダーに融合し、CPU-GPU 間のディスパッチオーバーヘッドを極小化。
 
+### 📚 教育・学習カリキュラム: Phase 3 (小脳バイパス確信度蒸留)
+* [ ] **データセット**: 日英 Wikipedia, TinyStories, Common Syntax (50k サンプル)
+* [ ] **学習目的**: PonderNet $k=1$ で正解確率が高い平易な構文トークンを識別する「小脳確信度ゲート（Cerebellar Confidence Gate: $c = \sigma(W_{\text{gate}} z_{\text{L4}} + b)$）」の二値分類蒸留学習。
+* [ ] **損失関数**: $\mathcal{L}_{\text{bypass}} = \text{BCE}(c, y_{\text{is\_k1}}) + \lambda \mathcal{L}_{\text{task}}$
+
 ---
 
 ## 🧠 Phase 3: Cotier v1.2 (神経修飾 & 自律制御)
 
+### 🛠️ システム実装タスク
 * [ ] **動的 Temperature 制御 (Neuromodulation)**:
   - 予測誤差（Surprise）の大小に応じて、サンプリング温度 $T \in [0.1, 0.9]$ をトークン単位で自動調整。
 * [ ] **可塑性（学習率）の自己適応**:
   - ユーザーが強い修正指示を与えた際、一時的に LoRA 学習率を引き上げて即座に吸収。
 
+### 📚 教育・学習カリキュラム: Phase 4 (多段階 MCP ツール連鎖 & 自己修正)
+* [ ] **データセット**: Glaive Function Calling v2, ToolBench, Synthetic Multi-Turn MCP (30k 対話)
+* [ ] **学習目的**: 複数ツールの連続呼び出し（検索 $\to$ 計算 $\to$ ファイル編集）、エラー発生時の自己反省（Reflexion）、および動的 Temperature と連動した不確実性の克服。
+* [ ] **学習手法**: Multi-Turn Tool SFT ＋ 海馬 Plastic LoRA による高速適応検証。
+
 ---
 
 ## 🏛️ Phase 4: Cotier v2.0 (高度推論: 視床 & 大脳基底核)
 
+### 🛠️ システム実装タスク
 * [ ] **視床ゲート (Thalamic Attention Gating)**:
   - 長文コンテキストの無関係なトークンを動的に間引き、計算量を 50% 削減。
 * [ ] **大脳基底核 Go/No-Go 回路**:
   - Layer V で複数の探索仮説を並行生成し、基底核モジュールが最適解を採択（パズル・数学・難解コードでのバックトラック探索）。
+
+### 📚 教育・学習カリキュラム: Phase 5 & 6 (長文視床圧縮 & 基底核強化学習)
+* [ ] **Phase 5 (視床長文マスク学習)**:
+  - データ: Multi-Doc QA, Code Repo Split (20k, $L=2048$)
+  - 目的: クエリに対して重要な Key/Value のみを選択する Sparse Attention マスクの教師あり学習。
+* [ ] **Phase 6 (大脳基底核 Go/No-Go DPO / 強化学習)**:
+  - データ: GSM8K, Sudoku 3M Hard, ARC-AGI, HumanEval (15k)
+  - 目的: 複数生成された潜在状態仮説（$\tilde{z}_1, \tilde{z}_2, \tilde{z}_3$）の中から、正解に繋がる経路に「Go（高報酬）」を与えるステップレベル DPO / PPO 最適化。
 
 ---
 
