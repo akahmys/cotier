@@ -1,18 +1,20 @@
-# 💻 Cotier Coding Standards & Hardening Protocol (CR-20 Protocol)
+# 💻 Cotier Coding Standards & Hardening Protocol (CR-15 Protocol)
 
-This document defines the coding conventions, safety standards (**CR-20 Protocol: Cotier Reliability-20**), and architectural patterns required across the Python training pipeline, Rust inference engine, and Apple Silicon Metal shaders in the Cotier repository.
+This document defines the coding conventions, safety standards (**CR-15 Protocol: Cotier Reliability-15**), and architectural boundaries required across the Python training pipeline, Rust inference engine, and Apple Silicon Metal shaders in the Cotier repository.
+
+*(Note: Security, license, and static audits live in [`AUDITING.md`](AUDITING.md); tests, parity benchmarks, and E2E verifications live in [`TESTING.md`](TESTING.md).)*
 
 ---
 
-## 🛡️ 1. The CR-20 Hardening Rules
+## 🛡️ 1. The CR-15 Rust Hardening Rules (`server/`)
 
-Derived from aerospace safety and high-assurance real-time systems, the **CR-20 Protocol** guarantees mathematical determinism, zero-panic memory safety, and optimal Apple Silicon Metal execution across the entire PyTorch/Rust lifecycle.
+Derived from aerospace safety and deterministic runtime principles, the **CR-15 Protocol** guarantees memory safety, crash prevention, and optimal Apple Silicon Metal execution.
 
 ### Rule Summary Matrix
 
 | Rule | Area | Requirement | Enforcement |
 | :--- | :--- | :--- | :--- |
-| **Rule 1** | **Function Length** | Max 50 lines for standard functions.<br>Max 150 lines for `// CR-20 Limit: Dispatcher` (e.g. forward pass or CLI loop). | `./scripts/audit/verify_compliance.sh` |
+| **Rule 1** | **Function Length** | Max 50 lines for standard functions.<br>Max 150 lines for `// CR-15 Limit: Dispatcher` (e.g. forward pass or CLI loop). | `./scripts/audit/verify_compliance.sh` |
 | **Rule 2** | **Panic Prevention** | `unwrap()` and `expect()` are forbidden in production code. Use `?`, `unwrap_or()`, or explicit error matching. | Automated grep / Clippy |
 | **Rule 3** | **Unsafe Ban** | `unsafe` blocks are forbidden (`workspace.lints.rust.unsafe_code = "forbid"` and `#![forbid(unsafe_code)]`). | Rustc compiler lint |
 | **Rule 4** | **Control Flow** | Avoid deep nesting (`if let` / `match`). Prefer early return with `?`. | Code review / Clippy |
@@ -25,13 +27,8 @@ Derived from aerospace safety and high-assurance real-time systems, the **CR-20 
 | **Rule 11** | **Error Transparency** | Return typed `thiserror` enums (`CotierError`). String-based errors (`Result<T, String>`) are forbidden in public APIs. | Automated grep check |
 | **Rule 12** | **No Error Swallowing** | `filter_map(Result::ok)` and silent error dropping in model forward loops are forbidden. | Automated grep check |
 | **Rule 13** | **Zero-Allocation Inference** | Minimize allocations in the autoregressive decode loop. Prioritize pre-allocated KV Buffers and in-place tensor updates. | Memory profiling / Benchmark |
-| **Rule 14** | **Test Code Separation** | Integration and unit tests MUST be placed in `server/tests/` or `train/tests/`. Do NOT pollute `src/` with standalone test files. | Directory structure check |
-| **Rule 15** | **Tensor Schema Contract** | Safetensors tensor keys, shapes, and dtypes MUST strictly adhere to `models/cotier-0.5b/tensor_schema.json`. Renaming is forbidden. | `scripts/test/verify_tensor_schema.py` |
-| **Rule 16** | **PyTorch-Rust Parity** | The Rust `candle` inference engine must output logits numerically identical to PyTorch within $L_\infty < 10^{-4}$. | `scripts/test/verify_parity.py` |
-| **Rule 17** | **FP32 Numerical Upcasting** | Weights are stored in `bfloat16`/`float32`, but RMSNorm variance, Softmax, PonderNet halting sums, and Surprise MUST be computed in FP32. | Code review / Parity test |
-| **Rule 18** | **Secrets and PII** | No credential, API key, personal name, or confidential data may be committed. | `betterleaks` via `verify_compliance.sh` |
-| **Rule 19** | **Licences** | Every Rust and Python dependency licence must be compliant (No GPL/AGPL copyleft violations). | `cargo deny` & `check_python_licenses.sh` |
-| **Rule 20** | **Preemption & User Priority** | Hippocampal sleep consolidation must yield immediately (`< 50ms`) upon receiving user inference requests. | Preemption integration test |
+| **Rule 14** | **FP32 Numerical Upcasting** | Weights are stored in `bfloat16`/`float32`, but RMSNorm variance, Softmax, PonderNet halting sums, and Surprise MUST be computed in FP32. | Code review / Metal shader |
+| **Rule 15** | **Explicit Typing** | Explicitly specify floating-point types (`1.0_f32`, `2.5_f64`) to prevent Edition 2024 inference fallbacks. | Clippy / Compiler |
 
 ---
 
@@ -42,9 +39,9 @@ Cotier targets Apple Silicon Unified Memory without external C/C++ runtime bloat
 | Category | Example | Policy |
 | :--- | :--- | :--- |
 | **Forbidden** | `llama.cpp` bindings, `onnxruntime-sys`, `libtorch-sys`, `openssl-sys` | Compiles vendored C/C++; pulls `cc` build dependency. |
-| **Allowed** | `candle-core` (with pure Metal backend), `objc`, `core-foundation-sys` | Pure Rust or platform API declarations provided by macOS. |
+| **Allowed / Exempt** | `candle-core` (Metal backend), `objc_exception`, `libsqlite3-sys` | Pure Rust, platform Apple Metal bindings, and SQLite storage. |
 
-**Enforcement**: `cargo tree` must verify that no crate named `cc` exists in the dependency tree for `aarch64-apple-darwin`.
+**Enforcement**: `cargo tree` must verify that no crate named `cc` exists in the dependency tree for `aarch64-apple-darwin`, outside of explicitly named exemptions (`libsqlite3-sys`, `objc_exception`).
 
 ---
 
