@@ -275,10 +275,10 @@ async fn generate_non_streaming(
         let next_token = last_logits.argmax(0)?.to_scalar::<u32>()?;
 
         // Compute softmax surprise: -log(p)
-        let probs = candle_nn::ops::softmax(&last_logits, 0)?;
+        let probs = candle_nn::ops::softmax(&last_logits, 0).unwrap_or(last_logits);
         let p = probs
-            .i(next_token as usize)?
-            .to_scalar::<f32>()
+            .i(next_token as usize)
+            .and_then(|t| t.to_scalar::<f32>())
             .unwrap_or(0.5);
         let surprise = -p.clamp(1e-7, 1.0).ln();
         avg_surprise = (avg_surprise + surprise) / 2.0;

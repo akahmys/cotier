@@ -225,21 +225,24 @@ impl CausalSelfAttention {
 
         let q = q
             .reshape((b, l, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
         let k = k
             .reshape((b, l, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
         let v = v
             .reshape((b, l, self.num_heads, self.head_dim))?
-            .transpose(1, 2)?;
+            .transpose(1, 2)?
+            .contiguous()?;
 
-        let q = self.rotary.apply(&q, offset)?;
-        let k = self.rotary.apply(&k, offset)?;
+        let q = self.rotary.apply(&q, offset)?.contiguous()?;
+        let k = self.rotary.apply(&k, offset)?.contiguous()?;
 
         let (k, v) = match kv_cache {
             Some((prev_k, prev_v)) => {
-                let new_k = Tensor::cat(&[&*prev_k, &k], 2)?;
-                let new_v = Tensor::cat(&[&*prev_v, &v], 2)?;
+                let new_k = Tensor::cat(&[&*prev_k, &k], 2)?.contiguous()?;
+                let new_v = Tensor::cat(&[&*prev_v, &v], 2)?.contiguous()?;
                 *prev_k = new_k.clone();
                 *prev_v = new_v.clone();
                 (new_k, new_v)
@@ -263,8 +266,9 @@ impl CausalSelfAttention {
             att
         };
 
-        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
-        let out = att.matmul(&v)?;
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?.contiguous()?;
+        let v_cont = v.contiguous()?;
+        let out = att.matmul(&v_cont)?;
         let out =
             out.transpose(1, 2)?
                 .contiguous()?

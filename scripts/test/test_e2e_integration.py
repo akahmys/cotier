@@ -34,18 +34,31 @@ def test_e2e_server() -> bool:
         server_binary = PROJECT_ROOT / "target" / "release" / "cotier-server"
 
     model_dir = PROJECT_ROOT / "models" / "cotier-0.5b"
-    cmd = [
-        "cargo",
-        "run",
-        "--manifest-path",
-        str(PROJECT_ROOT / "server" / "Cargo.toml"),
-        "--",
-        "serve",
-        "--model",
-        str(model_dir),
-        "--port",
-        str(port),
-    ]
+    if server_binary.exists():
+        cmd = [
+            str(server_binary),
+            "serve",
+            "--model",
+            str(model_dir),
+            "--port",
+            str(port),
+        ]
+    else:
+        cmd = [
+            "cargo",
+            "run",
+            "--manifest-path",
+            str(PROJECT_ROOT / "server" / "Cargo.toml"),
+            "--",
+            "serve",
+            "--model",
+            str(model_dir),
+            "--port",
+            str(port),
+        ]
+
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    urllib.request.install_opener(opener)
 
     print(f"▶️ Starting Cotier API server on port {port}...")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -54,18 +67,25 @@ def test_e2e_server() -> bool:
         # Wait for server to become ready
         server_url = f"http://127.0.0.1:{port}"
         ready = False
-        for attempt in range(20):
+        for attempt in range(15):
             time.sleep(1.0)
+            if proc.poll() is not None:
+                stdout, stderr = proc.communicate()
+                print(f"❌ Server process exited early with code {proc.returncode}:\n{stderr}\n{stdout}")
+                return False
             try:
                 with urllib.request.urlopen(f"{server_url}/v1/models", timeout=2.0) as resp:
                     if resp.status == 200:
                         ready = True
                         break
-            except Exception:
+            except Exception as e:
+                # print(f"Attempt {attempt}: {e}")
                 continue
 
         if not ready:
-            print("❌ Server failed to start within timeout.")
+            proc.terminate()
+            stdout, stderr = proc.communicate()
+            print(f"❌ Server failed to start within timeout. Stdout:\n{stdout}\nStderr:\n{stderr}")
             return False
 
         print("✅ Server is UP and listening.")
@@ -95,13 +115,18 @@ def test_e2e_server() -> bool:
             data=json.dumps(chat_payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
-            print(f"   Response choices: {data['choices']}")
-            print(f"   Cortical Metrics: {data.get('cortical_metrics')}")
-            assert data["object"] == "chat.completion"
-            assert len(data["choices"]) > 0
-        print("   ✅ Chat completions verified.")
+        try:
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode())
+                print(f"   Response choices: {data['choices']}")
+                print(f"   Cortical Metrics: {data.get('cortical_metrics')}")
+                assert data["object"] == "chat.completion"
+                assert len(data["choices"]) > 0
+            print("   ✅ Chat completions verified.")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            print(f"   ❌ HTTP Error {e.code}: {body}")
+            raise
 
         # 3. Test POST /v1/cotier/feedback
         print("\n[3/4] Testing POST /v1/cotier/feedback (+1 rating)...")
