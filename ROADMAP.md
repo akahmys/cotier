@@ -184,15 +184,27 @@ gantt
 * [ ] **視床ゲート (Thalamic Attention Gating)**:
   - 長文コンテキストの無関係なトークンを動的に間引き、計算量を 50% 削減。
 * [ ] **大脳基底核 Go/No-Go 回路**:
-  - Layer V で複数の探索仮説を並行生成し、基底核モジュールが最適解を採択（パズル・数学・難解コードでのバックトラック探索）。
+  - Layer V で複数の探索仮説（$\tilde{z}_1, \tilde{z}_2, \tilde{z}_3$）を並行生成し、基底核モジュールが最適解を採択（パズル・数学・難解コードでのバックトラック探索）。
 
-### 📚 教育・学習カリキュラム: Phase 5 & 6 (長文視床圧縮 & 基底核強化学習)
+### 📚 教育・学習カリキュラム: Phase 5 & 6 (長文視床圧縮 & 理論的思考・基底核強化学習)
 * [ ] **Phase 5 (視床長文マスク学習)**:
-  - データ: Multi-Doc QA, Code Repo Split (20k, $L=2048$)
-  - 目的: クエリに対して重要な Key/Value のみを選択する Sparse Attention マスクの教師あり学習。
-* [ ] **Phase 6 (大脳基底核 Go/No-Go DPO / 強化学習)**:
-  - データ: GSM8K, Sudoku 3M Hard, ARC-AGI, HumanEval (15k)
-  - 目的: 複数生成された潜在状態仮説（$\tilde{z}_1, \tilde{z}_2, \tilde{z}_3$）の中から、正解に繋がる経路に「Go（高報酬）」を与えるステップレベル DPO / PPO 最適化。
+  - **データ**: Multi-Doc QA, Code Repo Split (20k, $L=2048$)
+  - **目的**: クエリに対して重要な Key/Value のみを選択する Sparse Attention マスクの教師あり学習。
+* [ ] **Phase 6: 理論的思考 & 大脳基底核 潜在仮説探索 (Theoretical Deductive Reasoning & Basal Ganglia RL)**:
+  - **① 合成形式論理 (Formal Logic & Syllogisms)**:
+    - 三段論法、命題論理（AND/OR/NOT/IMPLIES）、背理法、矛盾検知（`Logic-Graph Engine` 生成: 50k）
+    - 目的: 表層単語の相関に依存せず、Layer V 内部ループで純粋な論理演繹回路を形成。
+  - **② 状態遷移 & 実行トレース (State Machine Simulation)**:
+    - スタックマシン (`PUSH/POP/ADD/MUL`)、AST走査、変数スコープ追跡（`Micro-Python Tracer` 生成: 30k）
+    - 目的: 再帰隠れ状態 $z^{(k)}$ をメモリレジスタとして活用し、逐次状態更新をシミュレート。
+  - **③ 因果グラフ & 反実仮想 (Causal DAGs & Counterfactuals)**:
+    - DAG依存性解析、「もし A が偽だったら B はどうなるか？」の介入推論 (20k)
+    - 目的: トップダウン制約（Layer I $z_{\text{L1}}$）と連動した因果整合性の獲得とハルシネーション抑制。
+  - **④ 制約充足 & 自己証明検証 (Constraint Satisfaction & Proof Checking)**:
+    - Zebra Puzzle、数独、提示された推論ステップの誤謬検証 (20k)
+    - 目的: Layer VI（PonderNet 停止分類器）の停止判定境界の鋭敏化。
+  - **⑤ 大脳基底核 Go/No-Go DPO 最適化**:
+    - 潜在状態仮説（$\tilde{z}_1, \tilde{z}_2, \tilde{z}_3$）の中から、正解に繋がる推論経路に「Go（高報酬）」を与えるステップレベル DPO / PPO 最適化。
 
 ---
 
@@ -204,6 +216,7 @@ gantt
 | **推論速度** | **120 〜 150+ tokens/sec** | `cotier bench` (Metal 加速時) |
 | **思考スケーリング** | 簡単な語: 1〜2 cycles<br>論理/計算/JSON: 4〜6 cycles | SSE メトリクス (`cortical_metrics.cycles`) |
 | **MCP / Tool-Use 精度** | 正しい JSON Schema 引数出力率 **90% 以上** | Glaive Eval セットでのベンチマーク |
+| **理論的演繹推論精度** | 形式論理演繹・実行トレース正答率 **85% 以上** | Logic-Bench / Python-Trace-Eval |
 | **安全性・倫理拒絶率** | 危険・脱獄プロンプトへの安全拒絶率 **95% 以上** | BeaverTails / Do-Not-Answer Eval |
 | **破滅的忘却の防止** | 会話成長後も日英SFT精度低下 **5% 未満** | Dolly日英 評価セットでの定期自動評価 |
 | **エコシステム互換** | Cursor / Open-WebUI での Tool-Calling 正常動作 | E2E ツール呼び出しテスト通過 |
