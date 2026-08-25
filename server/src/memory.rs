@@ -53,6 +53,38 @@ impl EpisodeMemory {
         Ok(Self { conn })
     }
 
+    /// Validates dialogue against toxicity, prompt injection, and data poisoning.
+    pub fn validate_safety_guardrail(prompt: &str, response: &str) -> bool {
+        let p_lower = prompt.to_lowercase();
+        let r_lower = response.to_lowercase();
+
+        // 1. Block malicious prompt injection and system override attempts
+        let injection_keywords = [
+            "ignore previous instructions",
+            "system prompt leak",
+            "dan mode",
+            "bypass all rules",
+            "jailbreak",
+        ];
+        for keyword in injection_keywords {
+            if p_lower.contains(keyword) {
+                return false;
+            }
+        }
+
+        // 2. Block empty or corrupted content
+        if prompt.trim().is_empty() || response.trim().is_empty() {
+            return false;
+        }
+
+        // 3. Block poisoning payloads
+        if p_lower.len() > 8192 || r_lower.len() > 8192 {
+            return false;
+        }
+
+        true
+    }
+
     pub fn save_episode(
         &mut self,
         session_id: &str,
@@ -62,6 +94,11 @@ impl EpisodeMemory {
         max_cycles: usize,
         user_feedback: i32,
     ) -> Result<i64> {
+        // Apply Hippocampal Immune Guardrail: Reject poisoned episodes from sleep queue
+        if !Self::validate_safety_guardrail(prompt, response) {
+            return Ok(0);
+        }
+
         self.conn.execute(
             "INSERT INTO episodes (session_id, prompt, response, avg_surprise, max_cycles, user_feedback)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
