@@ -16,11 +16,10 @@ safetensors = "0.5"
 # Web & Async Runtime
 tokio = { version = "1.38", features = ["full"] }
 axum = { version = "0.7", features = ["macros"] }
-tower = { version = "0.4" }
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 async-stream = "0.3"
 futures = "0.3"
-arc-swap = "1.7"
 
 # Persistence & Storage
 rusqlite = { version = "0.31", features = ["bundled"] }

@@ -18,6 +18,9 @@ pub enum CotierError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
     #[error("Model load error: {0}")]
     ModelLoad(String),
 

@@ -33,14 +33,14 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 echo "📋 Generating dependency license summary..."
-uvx pip-licenses --order=license --format=plain-vertical
+(cd train && uv run pip-licenses --order=license --format=plain-vertical)
 
 echo ""
 echo "⚖️  Verifying copyleft violations (Forbidden: ${FORBIDDEN_PATTERNS})..."
 # Check for copyleft licenses
-if uvx pip-licenses --format=json | grep -iE "${FORBIDDEN_PATTERNS}" > /dev/null 2>&1; then
+if (cd train && uv run pip-licenses --format=json) | grep -iE "${FORBIDDEN_PATTERNS}" > /dev/null 2>&1; then
     echo "❌ License Violation: Copyleft or restricted licenses detected in Python dependencies!"
-    uvx pip-licenses --format=plain-vertical | grep -iE "${FORBIDDEN_PATTERNS}" || true
+    (cd train && uv run pip-licenses --format=plain-vertical) | grep -iE "${FORBIDDEN_PATTERNS}" || true
     exit 1
 fi
 

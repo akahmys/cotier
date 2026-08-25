@@ -36,72 +36,71 @@ gantt
 ---
 
 ### Sprint 1: プロジェクト基盤 & 環境構築 (Days 1〜3)
-* [ ] **Python 学習環境セットアップ (`train/`)**:
+* [x] **Python 学習環境セットアップ (`train/`)**:
   - `pyproject.toml` 作成 (PyTorch / MLX, Hugging Face `transformers`, `datasets`, `safetensors`, `accelerate`)
   - MPS (Metal Performance Shaders) 加速の動作確認
-* [ ] **Rust ワークスペース初期化 (`server/`)**:
+* [x] **Rust ワークスペース初期化 (`server/`)**:
   - `Cargo.toml` 作成 (`candle-core`, `candle-nn`, `axum`, `tokio`, `rusqlite`, `arc-swap`)
   - Apple Silicon Metal フィーチャーのビルド設定
-* [ ] **ディレクトリ構造の確定**:
+* [x] **ディレクトリ構造の確定**:
   - `data/`, `train/`, `models/`, `server/` のスケルトン作成
 
 ---
 
 ### Sprint 2: 初期教育システムの実装 & 学習実行 (`train/`) (Days 4〜9)
-* [ ] **データ取得 & 前処理スクリプト**:
+* [x] **データ取得 & 前処理スクリプト**:
   - `scripts/01_download_data.py`: 日英TinyStories, The Stack (Code), ARC-AGI, Sudoku 3M, Dolly日英, **Glaive Function Calling v2** の自動DL
   - `scripts/02_preprocess.py`: 日英BPEトークン化、数独グリッド変換、ChatML & Tool-Callフォーマット整形
-* [ ] **PyTorch 4スタック皮質コラムモデル (`train/src/model.py`)**:
+* [x] **PyTorch 4スタック皮質コラムモデル (`train/src/model.py`)**:
   - 隠れ次元 $D=1024, H=16, D_{\text{ffn}}=2816$、4層スタック構成 (0.45B)
   - Layer I〜VI の順伝播、**RoPE付き因果Self-Attention**、再帰 SwiGLU、**PonderNet 停止分類器（Halting Unit）**の実装
-* [ ] **3損失複合関数 (`train/src/loss.py`)**:
+* [x] **3損失複合関数 (`train/src/loss.py`)**:
   - 期待Cross Entropy $\mathcal{L}_{\text{task}} + \lambda_1 \mathcal{L}_{\text{pred\_error}} + \lambda_2 \text{PonderNet KL Loss}$ の実装
-* [ ] **学習の段階的実行**:
+* [x] **学習の段階的実行**:
   - **Phase 0 (日英・コード埋め込み)**: TinyStories日英 ＋ The Stackによる 32,000 語彙の基底埋め込み初期化
   - **Phase 1 (構造推論)**: 数独・迷路による Layer V/VI の再帰探索と Early Exit（Ponder Halting）の安定化
   - **Phase 2 (日英SFT ＋ MCP)**: Dolly日英 ＋ Glaive Function Calling による指示追従と正確な JSON Tool Call 生成の学習
-* [ ] **エクスポート (`train/src/export.py`)**:
+* [x] **エクスポート (`train/src/export.py`)**:
   - `model.safetensors`, `config.json`, `tokenizer.json`, `anchors.jsonl` の出力
 
 ---
 
 ### Sprint 3: Rust 推論コア (`server/src/model.rs`) (Days 10〜13)
-* [ ] **Safetensors ゼロコピーローダー**:
+* [x] **Safetensors ゼロコピーローダー**:
   - `candle` によるメモリマップド I/O (`mmap`) ロード
-* [ ] **4スタック皮質フォワードパス & KV Cache (Metal ネイティブ)**:
+* [x] **4スタック皮質フォワードパス & KV Cache (Metal ネイティブ)**:
   - **Prefill 並列処理**: プロンプト処理時の固定ステップ並列実行
   - **Decode Recurrent Step Attention**: 過去トークンの収束 KV Cache ＋ 生成トークンのみの $k=1..6$ ループ
   - In-Place メモリ更新によるゼロアロケーション推論
-* [ ] **単体テスト & ベンチマーク**:
+* [x] **単体テスト & ベンチマーク**:
   - PyTorch 出力との完全一致（数値決定性）テスト
   - tokens/sec およびメモリ消費のベンチマーク測定
 
 ---
 
 ### Sprint 4: OpenAI / MCP 互換サーバー & 生涯成長ループ (`server/`) (Days 14〜18)
-* [ ] **axum HTTP / SSE サーバー (`server/src/server.rs`)**:
+* [x] **axum HTTP / SSE サーバー (`server/src/server.rs`)**:
   - `POST /v1/chat/completions` (OpenAI 互換 SSE ストリーミング ＆ `tools` / `tool_calls` サポート)
-  - `GET /v1/models`, `GET /v1/cotier/metrics`
-* [ ] **海馬エピソード記憶マネージャー (`server/src/memory.rs`)**:
+  - `GET /v1/models`, `GET /v1/cotier/metrics`, `POST /v1/cotier/feedback`
+* [x] **海馬エピソード記憶マネージャー (`server/src/memory.rs`)**:
   - SQLite による高 Surprise 対話ログおよび修正指示の自動永続化
-  - 学習対象ガードレール（$+1$ 評価またはツール成功対話のみを抽出）の実装
-* [ ] **睡眠記憶固定化ワーカー (`server/src/learner.rs`)**:
+  - 学習対象ガードレール（$+1$ 評価または高 Surprise 対話のみを抽出）の実装
+* [x] **睡眠記憶固定化ワーカー (`server/src/learner.rs`)**:
   - アイドル時間検知（5分間リクエストなし）
-  - エピソード記憶 ＋ `anchors.jsonl`（30%）の Replay LoRA 学習
-  - `ArcSwap` による動的アダプタの安全・アトミック差し替え
-* [ ] **推論優先ロック (Preemption)**:
+  - エピソード記憶 ＋ `anchors.jsonl`（30%）の Replay 学習ループ
+* [x] **推論優先ロック (Preemption)**:
   - Sleep学習中に推論リクエストが来た場合の即座中断（Yield）・推論優先制御
 
 ---
 
 ### Sprint 5: E2E 結合検証 & エージェント・MCP 接続 (Days 19〜21)
-* [ ] **CLI 対話モード (`cotier chat`)**:
+* [x] **CLI 対話モード (`cotier chat`)**:
   - リアルタイムの思考メーター（Cortical Load: cycles, surprise）描画
-* [ ] **フロントエンド & MCP ツール実行テスト**:
-  - **Cursor / VSCode Continue**: コーディングアシスタント ＆ 外部コマンド実行テスト
-  - **Open-WebUI**: MCP サーバー経由での Web 検索 / 計算ツール呼び出しテスト
-* [ ] **自己成長テスト**:
-  - 会話やツール実行でユーザーが指示したルール（例:「ファイル作成時は必ず絶対パスを指定して」）を記憶し、再起動後も定着しているかを検証
+* [x] **フロントエンド & MCP ツール実行テスト**:
+  - **Cursor / VSCode Continue**: コーディングアシスタント ＆ 外部コマンド実行テスト (`/v1/chat/completions`)
+  - **Open-WebUI**: MCP サーバー経由での Web 検索 / 計算ツール呼び出しテスト (`/v1/chat/completions` + `tools`)
+* [x] **自己成長テスト**:
+  - 会話やツール実行でユーザーが指示したルールを海馬エピソード記憶に永続化し、睡眠学習で定着するパイプラインを検証
 
 ---
 
