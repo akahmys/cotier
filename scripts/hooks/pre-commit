@@ -1,16 +1,29 @@
-#!/bin/sh
-# Pre-commit hook to scan for secrets and sensitive information using betterleaks
+#!/usr/bin/env bash
+# Cotier Pre-commit Hook: Secret & PII scan and CR-20 static compliance audit
+set -euo pipefail
 
-echo "🔒 Running betterleaks pre-commit secret & PII scan..."
-if ! command -v betterleaks >/dev/null 2>&1; then
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${REPO_ROOT}"
+
+echo "🔒 [1/2] Running betterleaks pre-commit secret & PII scan..."
+if command -v betterleaks >/dev/null 2>&1; then
+    betterleaks git --pre-commit --staged
+    echo "✅ Secret & PII scan passed cleanly."
+else
     echo "⚠️  Warning: betterleaks is not installed. Skipping secret scan."
-    exit 0
 fi
 
-betterleaks git --pre-commit --staged
-if [ $? -ne 0 ]; then
-    echo "❌ Secret or PII leak detected! Commit aborted by betterleaks."
+echo "🛡️ [2/2] Running CR-20 fast static checks..."
+cd "${REPO_ROOT}/server"
+if grep -rnE --include="*.rs" '\.(unwrap|expect)\(' src/ | grep -v 'test' >/dev/null 2>&1; then
+    echo "❌ CR-20 Rule 2 Violation: Forbidden unwrap/expect in production code."
     exit 1
 fi
 
-echo "✅ Secret & PII scan passed cleanly."
+if grep -rnE --include="*.rs" 'unsafe[[:space:]]+(\{|\bimpl\b|\bfn\b)' src/ >/dev/null 2>&1; then
+    echo "❌ CR-20 Rule 3 Violation: Found unsafe code in server/src/."
+    exit 1
+fi
+
+cargo fmt --all --check
+echo "✅ Pre-commit CR-20 checks passed cleanly."
