@@ -11,11 +11,12 @@ gantt
     title Cotier 開発ロードマップ
     dateFormat  YYYY-MM-DD
     section v1.0 MVP (日英/コード/MCP・対話・自己成長)
-    Sprint 1: 環境セットアップ & 基盤構築         :active, s1, 2026-08-25, 3d
-    Sprint 2: Python 初期教育 (日英・コード・MCP)  :s2, after s1, 6d
-    Sprint 3: Rust 推論コア & Metal 最適化       :s3, after s2, 4d
-    Sprint 4: OpenAI / MCP サーバー & 記憶固定化 :s4, after s3, 5d
-    Sprint 5: E2E 結合検証 & エージェント接続   :s5, after s4, 3d
+    Sprint 1: 環境セットアップ & 基盤構築         :done, s1, 2026-08-25, 3d
+    Sprint 2: Python 初期教育 (日英・コード・MCP)  :done, s2, after s1, 6d
+    Sprint 3: Rust 推論コア & Metal 最適化       :done, s3, after s2, 4d
+    Sprint 4: OpenAI / MCP サーバー & 記憶固定化 :done, s4, after s3, 5d
+    Sprint 5: E2E 結合検証 & エージェント接続   :done, s5, after s4, 3d
+    Sprint 6: コードベース総合リファクタリング   :active, s6, after s5, 2d
     
     section v1.1 高速化 (小脳ショートカット)
     小脳 Fast-Path & Metal カーネル融合           :v11, after s5, 5d
@@ -101,6 +102,23 @@ gantt
   - **Open-WebUI**: MCP サーバー経由での Web 検索 / 計算ツール呼び出しテスト (`/v1/chat/completions` + `tools`)
 * [x] **自己成長テスト**:
   - 会話やツール実行でユーザーが指示したルールを海馬エピソード記憶に永続化し、睡眠学習で定着するパイプラインを検証
+
+---
+
+### Sprint 6: コードベース総合リファクタリング & 基盤強化 (Days 22〜23)
+* [ ] **Python 学習基盤の DRY 化 (`train/src/`)**:
+  - `train/src/dataset.py`: `TokenizedDataset` のモジュール分離・共通化
+  - `train/src/trainer.py`: `CotierTrainer` 基盤クラスの構築（Phase 0〜2 の学習・最適化ループ共通化）
+  - 各 Phase スクリプトの薄い Config エントリポイント化
+* [ ] **Rust 推論ジェネレータの共通化 (`server/src/`)**:
+  - `server/src/engine.rs`: `TokenStreamIterator` / `GenerationEngine` の抽出
+  - `generate_non_streaming`, `generate_sse_stream`, CLI `chat` の自己回帰ループ（forward・argmax・surprise・decode）一本化
+  - サンプリング・Top-p・Temperature の将来拡張用基盤整備
+* [ ] **KV Cache の型カプセル化 (`server/src/model.rs`)**:
+  - `struct LayerKvCache` および `struct ModelKvCache` による安全なキャッシュ管理
+  - In-Place メモリ更新およびシーケンス長トリミングの型安全化
+* [ ] **回帰テスト & 品質監査**:
+  - `cargo test --workspace`, `pytest`, `verify_parity.py`, `test_e2e_integration.py` の全数通過確認
 
 ---
 
