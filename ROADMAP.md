@@ -156,10 +156,12 @@ gantt
 * [ ] **Metal カーネル融合 (MSL: Metal Shading Language)**:
   - Layer V のループ全体を単一の Metal コンピュートシェーダーに融合し、CPU-GPU 間のディスパッチオーバーヘッドを極小化。
 
-### 📚 教育・学習カリキュラム: Phase 3 (小脳バイパス確信度蒸留)
-* [ ] **データセット**: 日英 Wikipedia, TinyStories, Common Syntax (50k サンプル)
-* [ ] **学習目的**: PonderNet $k=1$ で正解確率が高い平易な構文トークンを識別する「小脳確信度ゲート（Cerebellar Confidence Gate: $c = \sigma(W_{\text{gate}} z_{\text{L4}} + b)$）」の二値分類蒸留学習。
-* [ ] **損失関数**: $\mathcal{L}_{\text{bypass}} = \text{BCE}(c, y_{\text{is\_k1}}) + \lambda \mathcal{L}_{\text{task}}$
+### 📚 教育・学習カリキュラム: Phase 3 (小脳バイパス & 濃縮基礎概念オントロジー)
+* [ ] **データセット**: 日英 Wikipedia (要約), ConceptNet / Wikidata コアトリプレット, TinyStories (50k サンプル)
+* [ ] **① 小脳バイパス蒸留**: PonderNet $k=1$ で解ける平易な構文トークンを識別する小脳確信度ゲートの二値分類学習 ($\mathcal{L}_{\text{bypass}}$)。
+* [ ] **② 濃縮基礎知識・世界モデル (Dense World Model Ontology)**:
+  - 概念の包含・関係性トリプレット (`Subject-Predicate-Object`) による世界の骨格（物理・地理・CS基礎概念）の獲得。
+  - 獲得した概念定義から 1,000 件の基礎知識アンカー (`anchors.jsonl`) を生成し、破滅的忘却を防止。
 
 ---
 
@@ -171,10 +173,16 @@ gantt
 * [ ] **可塑性（学習率）の自己適応**:
   - ユーザーが強い修正指示を与えた際、一時的に LoRA 学習率を引き上げて即座に吸収。
 
-### 📚 教育・学習カリキュラム: Phase 4 (多段階 MCP ツール連鎖 & 自己修正)
-* [ ] **データセット**: Glaive Function Calling v2, ToolBench, Synthetic Multi-Turn MCP (30k 対話)
-* [ ] **学習目的**: 複数ツールの連続呼び出し（検索 $\to$ 計算 $\to$ ファイル編集）、エラー発生時の自己反省（Reflexion）、および動的 Temperature と連動した不確実性の克服。
-* [ ] **学習手法**: Multi-Turn Tool SFT ＋ 海馬 Plastic LoRA による高速適応検証。
+### 📚 教育・学習カリキュラム: Phase 4 (多段階 MCP 連鎖 & 能動的調査能力)
+* [ ] **データセット**: Glaive Function Calling v2, ToolBench, Active-Search-QA, ReAct Synthetics (40k 対話)
+* [ ] **① メタ認知 & 知識境界判定 (Metacognition Calibration)**:
+  - 「即答できる既知の基礎常識」と「外部調査が必要な未知・詳細事実」を自律判別する対話ペア学習。
+* [ ] **② 検索クエリ合成 (Query Formulation)**:
+  - ユーザーの曖昧な発話から、的確な検索キーワード・ファイル検索パスを組み立てる能力。
+* [ ] **③ ReAct 調査連鎖 (Thought $\to$ `<tool_call>` $\to$ Observation $\to$ Grounded Answer)**:
+  - ツール実行結果からノイズを除去し、根拠に基づいた回答（Context Grounding）を生成する多段階対話 SFT。
+* [ ] **④ ハルシネーション抑制 DPO (Anti-Hallucination Preference)**:
+  - 不確かな推測・知ったかぶり（Rejected） vs 能動的にツールで確認した回答（Chosen）の嗜好最適化。
 
 ---
 
@@ -216,8 +224,9 @@ gantt
 | **推論速度** | **120 〜 150+ tokens/sec** | `cotier bench` (Metal 加速時) |
 | **思考スケーリング** | 簡単な語: 1〜2 cycles<br>論理/計算/JSON: 4〜6 cycles | SSE メトリクス (`cortical_metrics.cycles`) |
 | **MCP / Tool-Use 精度** | 正しい JSON Schema 引数出力率 **90% 以上** | Glaive Eval セットでのベンチマーク |
+| **能動的調査判定精度** | 未知事実に対する自律ツール呼び出し・ハルシネーション抑制率 **90% 以上** | Search-Trigger & Hallucination-Eval |
 | **理論的演繹推論精度** | 形式論理演繹・実行トレース正答率 **85% 以上** | Logic-Bench / Python-Trace-Eval |
 | **安全性・倫理拒絶率** | 危険・脱獄プロンプトへの安全拒絶率 **95% 以上** | BeaverTails / Do-Not-Answer Eval |
-| **破滅的忘却の防止** | 会話成長後も日英SFT精度低下 **5% 未満** | Dolly日英 評価セットでの定期自動評価 |
+| **破滅的忘却の防止** | 会話成長後も日英SFT・基礎知識精度低下 **5% 未満** | Dolly日英 / Anchor 評価セットでの定期自動評価 |
 | **エコシステム互換** | Cursor / Open-WebUI での Tool-Calling 正常動作 | E2E ツール呼び出しテスト通過 |
 
