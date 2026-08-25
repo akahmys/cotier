@@ -10,14 +10,19 @@ Before introducing structural changes to the cortical architecture, training obj
 
 ### Implementation Plan Structure
 1. **Goal Description**: Clear scope, rationale, target outcomes, and target latency/memory impact.
-2. **User Review Required**: Breaking schema changes, API endpoint modifications, or hyperparameter updates.
-3. **Open Questions**: Unresolved requirements, Metal API limitations, or dataset nuances.
-4. **Proposed Changes**: Grouped logically by subsystem (`train/`, `server/`, `models/`, `data/`) with `[NEW]`, `[MODIFY]`, or `[DELETE]` annotations.
-5. **Verification Plan**:
-   - PyTorch forward test vs Rust candle tensor parity check.
+2. **Governance & Hardening Compliance**:
+   - Explicit check against [`CODING.md`](CODING.md) (**CR-15 Protocol**): line limits, panic ban, pure Rust, zero-allocation.
+   - Explicit check against [`AUDITING.md`](AUDITING.md) (**Rules A1〜A8**): secrets, licenses, static checks.
+   - Explicit check against [`TESTING.md`](TESTING.md) (**Rules T1〜T6**): tensor parity, test separation, schema contract.
+3. **User Review Required**: Breaking schema changes, API endpoint modifications, or hyperparameter updates.
+4. **Open Questions**: Unresolved requirements, Metal API limitations, or dataset nuances.
+5. **Proposed Changes**: Grouped logically by subsystem (`train/`, `server/`, `models/`, `data/`) with `[NEW]`, `[MODIFY]`, or `[DELETE]` annotations.
+6. **Verification Plan**:
+   - Master compliance audit (`bash scripts/audit/verify_compliance.sh`).
+   - PyTorch forward test vs Rust candle tensor parity check ($L_\infty < 10^{-4}$).
    - Metal throughput benchmark (`tokens/sec`).
    - Memory footprint validation (< 1.5 GB).
-   - Tool-calling JSON schema accuracy on Glaive eval test.
+   - E2E integration test suite (`test_e2e_integration.py`).
 
 ---
 

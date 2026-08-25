@@ -105,20 +105,28 @@ gantt
 
 ---
 
-### Sprint 6: コードベース総合リファクタリング & 基盤強化 (Days 22〜23)
-* [ ] **Python 学習基盤の DRY 化 (`train/src/`)**:
+### Sprint 6: コードベース総合リファクタリング & CR-15 ハードニング (Days 22〜23)
+* [ ] **Python 学習基盤の DRY 化 & 型強化 (`train/src/`)**:
   - `train/src/dataset.py`: `TokenizedDataset` のモジュール分離・共通化
   - `train/src/trainer.py`: `CotierTrainer` 基盤クラスの構築（Phase 0〜2 の学習・最適化ループ共通化）
-  - 各 Phase スクリプトの薄い Config エントリポイント化
-* [ ] **Rust 推論ジェネレータの共通化 (`server/src/`)**:
+  - **CODING 規約適合**: `mypy --strict src/` 完全適合、全テンソル変換への形状注記コメント付与、PonderNet $\epsilon$-clamping ($\epsilon=10^{-7}$) 徹底
+* [ ] **Rust 推論ジェネレータの共通化 & CR-15 準拠 (`server/src/`)**:
   - `server/src/engine.rs`: `TokenStreamIterator` / `GenerationEngine` の抽出
   - `generate_non_streaming`, `generate_sse_stream`, CLI `chat` の自己回帰ループ（forward・argmax・surprise・decode）一本化
-  - サンプリング・Top-p・Temperature の将来拡張用基盤整備
+  - **CR-15 規約適合**:
+    - **Rule 1 (関数長)**: 標準関数 50行以内、ディスパッチャ 150行以内
+    - **Rule 2 & 3 (パニック/Unsafe 禁止)**: `unwrap`/`expect` ゼロ、`unsafe` ゼロ
+    - **Rule 4 & 5 (制御フロー/網羅 Match)**: `?` 早期リターン徹底、ドメイン enum ワイルドカード排除
+    - **Rule 13 (ゼロアロケーション)**: Decode ループ中の不要なメモリ確保・クローン排除
+    - **Rule 14 & 15 (FP32/明示的型指定)**: Surprise / Softmax の FP32 計算、`1.0_f32` リテラル指定
 * [ ] **KV Cache の型カプセル化 (`server/src/model.rs`)**:
-  - `struct LayerKvCache` および `struct ModelKvCache` による安全なキャッシュ管理
+  - `struct LayerKvCache` および `struct ModelKvCache` による安全なキャッシュ管理（**Rule 8 不正状態の排除**）
   - In-Place メモリ更新およびシーケンス長トリミングの型安全化
-* [ ] **回帰テスト & 品質監査**:
-  - `cargo test --workspace`, `pytest`, `verify_parity.py`, `test_e2e_integration.py` の全数通過確認
+* [ ] **CR-15 / AUDITING / TESTING 全自動回帰検証**:
+  - **静的監査 (Rule A1〜A8)**: `bash scripts/audit/verify_compliance.sh` 全項目 PASS
+  - **単体・統合テスト (Rule T1)**: `cd train && uv run pytest` & `cd server && cargo test --workspace`
+  - **スキーマ & パリティ (Rule T2, T3)**: `verify_tensor_schema.py` & `verify_parity.py` ($L_\infty < 10^{-4}$)
+  - **E2E ＆ Preemption (Rule T4, T5)**: `test_e2e_integration.py`（Metal GPU推論、SSE、海馬記憶、プリエンプション）
 
 ---
 
